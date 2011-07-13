@@ -12,3 +12,5 @@ dist
 build/
 tags
 TAGS
+.project
+.pydevproject
