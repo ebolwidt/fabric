@@ -16,6 +16,8 @@ import os
 import sys
 import types
 
+import monkeypatch
+
 from fabric import api, state  # For checking callables against the API, & easy mocking
 from fabric.contrib import console, files, project  # Ditto
 from fabric.network import denormalize, interpret_host_string, disconnect_all

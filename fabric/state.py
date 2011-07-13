@@ -139,6 +139,11 @@ env_options = [
         help="comma-separated list of hosts to operate on"
     ),
 
+    make_option('-G', '--gateway',
+        default=None,
+        help="SSH gateway"
+    ),
+
     make_option('-R', '--roles',
         default=[],
         help="comma-separated list of roles to operate on"
