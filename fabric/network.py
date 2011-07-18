@@ -29,7 +29,6 @@ Please make sure all dependencies are installed and importable.""" % e
 host_pattern = r'((?P<user>.+)@)?(?P<host>[^:]+)(:(?P<port>\d+))?'
 host_regex = re.compile(host_pattern)
 
-
 class HostConnectionCache(dict):
     """
     Dict subclass allowing for caching of host connections/clients.
@@ -61,14 +60,32 @@ class HostConnectionCache(dict):
     two different connections to the same host being made. If no port is given,
     22 is assumed, so ``example.com`` is equivalent to ``example.com:22``.
     """
+    _gateway = None    
+    
+    def initialize_gateway(self):
+        """
+        Initializes the connection to the gateway, if a gateway is specified.
+        """
+        from fabric.state import env
+        gateway_key = env.get('gateway')
+        if not gateway_key is None and self._gateway is None:
+            gateway_user, gateway_host, gateway_port = normalize(gateway_key)
+            # Normalize given key (i.e. obtain username and port, if not given)
+            self._gateway = connect(gateway_user, gateway_host, gateway_port)
+            
     def __getitem__(self, key):
+        self.initialize_gateway
         # Normalize given key (i.e. obtain username and port, if not given)
         user, host, port = normalize(key)
         # Recombine for use as a key.
         real_key = join_host_strings(user, host, port)
         # If not found, create new connection and store it
         if real_key not in self:
-            self[real_key] = connect(user, host, port)
+            if self._gateway is None:
+                self[real_key] = connect(user, host, port)
+            else:
+                self[real_key] = connect_forward(self._gw, host, port, user)
+                
         # Return the value either way
         return dict.__getitem__(self, real_key)
 
