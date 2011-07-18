@@ -265,6 +265,56 @@ def connect(user, host, port):
                 host, e[1])
             )
 
+def connect_forward(gw, host, port, user):
+    """
+    Create a different connect that works with a gateway. We really need to
+    create the socket and destroy it when the connection fails and then retry
+    the connect.
+    """
+    from state import env
+    from forward_ssh import ForwardSSHClient
+    client = ForwardSSHClient()
+    while True:
+        # Load known host keys (e.g. ~/.ssh/known_hosts) unless user says not to.
+        if not env.disable_known_hosts:
+            client.load_system_host_keys()
+        # Unless user specified not to, accept/add new, unknown host keys
+        if not env.reject_unknown_hosts:
+            client.set_missing_host_key_policy(ssh.AutoAddPolicy())
+
+        sock = gw.get_transport().open_channel('direct-tcpip', (host, int(port)), ('', 0))
+        try:
+            client.connect(host, sock, int(port), user, env.password,
+                           key_filename=env.key_filename, timeout=10)
+            client._sock_ = sock
+            return client
+        except (
+            ssh.AuthenticationException,
+            ssh.PasswordRequiredException,
+            ssh.SSHException
+        ), e:
+            if e.__class__ is ssh.SSHException and env.password:
+                abort(str(e))
+
+            env.password = prompt_for_password(env.password)
+            sock.close()
+
+        except (EOFError, TypeError):
+            # Print a newline (in case user was sitting at prompt)
+            print('')
+            sys.exit(0)
+        # Handle timeouts
+        except socket.timeout:
+            abort('Timed out trying to connect to %s' % host)
+        # Handle DNS error / name lookup failure
+        except socket.gaierror:
+            abort('Name lookup failed for %s' % host)
+        # Handle generic network-related errors
+        # NOTE: In 2.6, socket.error subclasses IOError
+        except socket.error, e:
+            abort('Low level socket error connecting to host %s: %s' % (
+                host, e[1])
+            )
 
 def prompt_for_password(prompt=None, no_colon=False, stream=None):
     """
