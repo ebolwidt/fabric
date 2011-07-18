@@ -60,20 +60,20 @@ class HostConnectionCache(dict):
     two different connections to the same host being made. If no port is given,
     22 is assumed, so ``example.com`` is equivalent to ``example.com:22``.
     """
-    _gateway = None    
     
     def initialize_gateway(self):
         """
         Initializes the connection to the gateway, if a gateway is specified.
         """
-        from fabric.state import env
-        gateway_key = env.get('gateway')
-        if not gateway_key is None and self._gateway is None:
+        from fabric import state
+        gateway_key = state.env.get('gateway')
+        if not gateway_key is None and state.gateway_connection is None:
             gateway_user, gateway_host, gateway_port = normalize(gateway_key)
             # Normalize given key (i.e. obtain username and port, if not given)
-            self._gateway = connect(gateway_user, gateway_host, gateway_port)
+            state.gateway_connection = connect(gateway_user, gateway_host, gateway_port)
             
     def __getitem__(self, key):
+        from fabric import state
         self.initialize_gateway()
         # Normalize given key (i.e. obtain username and port, if not given)
         user, host, port = normalize(key)
@@ -81,10 +81,10 @@ class HostConnectionCache(dict):
         real_key = join_host_strings(user, host, port)
         # If not found, create new connection and store it
         if real_key not in self:
-            if self._gateway is None:
+            if state.gateway_connection is None:
                 self[real_key] = connect(user, host, port)
             else:
-                self[real_key] = connect_forward(self._gateway, host, port, user)
+                self[real_key] = connect_forward(state.gateway_connection, host, port, user)
                 
         # Return the value either way
         return dict.__getitem__(self, real_key)
@@ -425,12 +425,19 @@ def disconnect_all():
     Used at the end of ``fab``'s main loop, and also intended for use by
     library users.
     """
-    from fabric.state import connections, output
+    from fabric.state import connections, output, gateway_connection
     # Explicitly disconnect from all servers
     for key in connections.keys():
         if output.status:
             print "Disconnecting from %s..." % denormalize(key),
         connections[key].close()
         del connections[key]
+        if output.status:
+            print "done."
+    if not gateway_connection is None:
+        if output.status:
+            print "Disconnecting from gateway...",
+        gateway_connection.close()
+        gateway_connection = None
         if output.status:
             print "done."

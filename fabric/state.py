@@ -291,6 +291,11 @@ commands = {}
 
 connections = HostConnectionCache()
 
+#
+# Connection to SSH gateway if so requested
+#
+
+gateway_connection = None
 
 def default_channel():
     """
