@@ -74,7 +74,7 @@ class HostConnectionCache(dict):
             self._gateway = connect(gateway_user, gateway_host, gateway_port)
             
     def __getitem__(self, key):
-        self.initialize_gateway
+        self.initialize_gateway()
         # Normalize given key (i.e. obtain username and port, if not given)
         user, host, port = normalize(key)
         # Recombine for use as a key.
@@ -84,7 +84,7 @@ class HostConnectionCache(dict):
             if self._gateway is None:
                 self[real_key] = connect(user, host, port)
             else:
-                self[real_key] = connect_forward(self._gw, host, port, user)
+                self[real_key] = connect_forward(self._gateway, host, port, user)
                 
         # Return the value either way
         return dict.__getitem__(self, real_key)
